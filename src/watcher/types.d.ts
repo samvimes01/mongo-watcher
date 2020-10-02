@@ -1,9 +1,16 @@
-import { Db, MongoClient, ObjectId, Timestamp, ChangeStream, ChangeEvent, ResumeToken } from 'mongodb';
+import { Db, MongoClient, ObjectId, ChangeStream, ChangeEvent, ResumeToken } from 'mongodb';
+import { RedisClient } from 'redis';
 import { CollectionName } from './config/defaults';
 
+export type RedisClientPromisified = Omit<RedisClient, 'hset' | 'hget'> & { 
+  hget: (key: string, field: string) => Promise<string>,
+  hset: (arg1: [string, ...string[]]) => Promise<number>,
+};
+
 export type WatcherContext = {
-  db: Db,
-  client: MongoClient
+  db: Db;
+  mongoClient: MongoClient;
+  redisClient?: RedisClientPromisified;
 };
 
 export type WatchProps = {
@@ -22,7 +29,7 @@ export type WatchEntryConfig = {
 export type OperationType = 'insert' | 'update' | 'delete' | 'replace' | 'drop';
 
 export type DefaultDocument = {
-  _id: ResumeToken;
+  _id: ResumeToken & { _data: string };
   collectionName: CollectionName;
   documentId: ObjectId;
   operationType: OperationType;
@@ -31,7 +38,7 @@ export type DefaultDocument = {
 export type StoredResumeToken = {
   _id: ObjectId;
   collectionName: CollectionName;
-  resumeToken: ResumeToken;
+  resumeToken: ResumeToken & { _data: string };
 };
 
 export type Watcher = {

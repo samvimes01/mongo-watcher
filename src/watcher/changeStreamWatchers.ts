@@ -104,10 +104,7 @@ export class ChangeStreamWatchers {
     collectionName: CollectionName,
     isResumable: boolean
   ): Promise<ChangeStreamOptions> {
-    const options: ChangeStreamOptions = {
-      // we need this to get fullDocument on update operation, we need fullDocument to get org_id
-      fullDocument: 'updateLookup',
-    };
+    const options: ChangeStreamOptions = { };
 
     if (isResumable) {
       const resumeToken = await this.getCollectionResumeToken(collectionName);
@@ -127,7 +124,9 @@ export class ChangeStreamWatchers {
   ): void {
     changeConfigs.forEach((config) =>
       config.processNextDocument(this.context, config.collectionName, nextDoc).then(() => {
+        const token = (nextDoc as DefaultDocument)._id._data;
         this.watchers[collectionName].resumeToken = nextDoc._id;
+        this.context.redisClient?.hset(['resumeTokensHash', collectionName, token]);
       })
     );
   }
@@ -135,15 +134,18 @@ export class ChangeStreamWatchers {
   getCollectionResumeToken(
     collection: CollectionName
   ): Promise<ResumeToken | null> {
+    if (this.context.redisClient?.connected) {
+      return this.context.redisClient.hget('resumeTokensHash', collection)
+        .then((_data) => (_data ? { _id: { _data } } : null))
+        .catch((err) => null);
+    }
     return this.context.db
       .collection(COLLECTIONS.resumeTokens)
       .findOne({ collection }, { projection: { resumeToken: 1 } })
       .then((doc: { resumeToken: ResumeToken } | undefined) => {
         return doc?.resumeToken || null;
       })
-      .catch((err) => {
-        return null;
-      });
+      .catch((err) => null);
   }
 
   setCollectionResumeToken(

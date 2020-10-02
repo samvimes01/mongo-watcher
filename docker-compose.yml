@@ -22,7 +22,7 @@ services:
   mongodb:
     container_name: mongodb4.4
     hostname: ${MONGO_HOSTNAME}
-    image: mongo:4.4
+    image: mongo:4.4.0
     volumes:
       - ./data/db:/data/db
       - ./scripts/mongoinit:/docker-entrypoint-initdb.d:ro
@@ -42,12 +42,21 @@ services:
 
   redis:
     image: redis:6-alpine
+    hostname: ${REDIS_HOSTNAME}
     volumes:
       - ./data/redis:/data
     entrypoint: redis-server --appendonly yes
     restart: always
     ports:
-      - "6400:6379"
+      - 6400:6379
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    restart: always
+    environment:
+      - REDIS_HOSTS=local:${REDIS_HOSTNAME}:6379
+    ports:
+      - "6500:8081"
 
   # api:
   #   container_name: api

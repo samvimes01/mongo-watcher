@@ -1,6 +1,6 @@
 import { ChangeStreamWatchers } from './changeStreamWatchers';
 import { entries } from './config';
-import { db } from './db';
+import { db, initRedis } from './db';
 import { WatcherContext } from './types';
 
 const configDb = {
@@ -11,22 +11,36 @@ const configDb = {
   dbName: process.env.MONGO_INITDB_DATABASE!,
   rsName: process.env.MONGO_REPLICA_SET_NAME!
 };
+const configRedis = {
+  host: process.env.REDIS_HOSTNAME!,
+};
 
 const context = {} as WatcherContext;
 let watchers: ChangeStreamWatchers;
 
 // Starting watchers app
-db(configDb).then((mongoconn) => {
-  context.db = mongoconn.db;
-  context.client = mongoconn.client;
-  context.db.on('error', processFatalError('Database'));
-  context.db.once('close', processShutdown('Database closed'));
-  watchers = new ChangeStreamWatchers(context, entries);
-  return watchers.startChangeStreamWatchers();
-})
+initRedis(configRedis)
   .catch((e) => {
-    console.log('can\'t connect');
-  });
+    console.log('can\'t connect to Redis');
+    return null;
+  })
+  .then((redisClient) => db(configDb)
+    .then((mongoconn) => {
+      context.db = mongoconn.db;
+      context.mongoClient = mongoconn.client;
+      if (redisClient) {
+        context.redisClient = redisClient;
+      }
+      context.db.on('error', processFatalError('Database'));
+      context.db.once('close', processShutdown('Database closed'));
+      watchers = new ChangeStreamWatchers(context, entries);
+      return watchers.startChangeStreamWatchers();
+      })
+  )
+    .catch((e) => {
+      console.log('can\'t connect to Mongo');
+    })
+
 
 let isShutdownInProgress = false;
 const processShutdown = (type: string) => async (): Promise<void> => {
@@ -37,9 +51,9 @@ const processShutdown = (type: string) => async (): Promise<void> => {
   isShutdownInProgress = true;
 
   try {
-    if (context.client) {
+    if (context.mongoClient) {
       await new Promise((resolve, reject) =>
-        context.client.close((err) => {
+        context.mongoClient.close((err) => {
           if (err) {
             return reject(err);
           }
