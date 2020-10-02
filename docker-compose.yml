@@ -1,0 +1,65 @@
+version: "3.8"
+services:
+  watcher:
+    container_name: watcher
+    hostname: watcher
+    restart: always
+    build:
+      context: ./src/watcher
+      dockerfile: ./Dockerfile
+    working_dir: /usr/src/app
+    volumes:
+      - ./src/watcher:/usr/src/app 
+    ports:
+      - 4323:4323 #debug
+    depends_on:
+      - mongodb
+      - redis
+    env_file:
+      - .env
+    command: "npm start"
+
+  mongodb:
+    container_name: mongodb4.4
+    hostname: ${MONGO_HOSTNAME}
+    image: mongo:4.4
+    volumes:
+      - ./data/db:/data/db
+      - ./scripts/mongoinit:/docker-entrypoint-initdb.d:ro
+    ports:
+      - 35000:27017
+    env_file:
+      - .env
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+    healthcheck:
+      test: test $$(echo "rs.initiate().ok || rs.status().ok" | mongo -u $${MONGO_INITDB_ROOT_USERNAME} -p $${MONGO_INITDB_ROOT_PASSWORD} --quiet) -eq 1
+      interval: 10s
+      start_period: 30s
+    command: mongod --replSet ${MONGO_REPLICA_SET_NAME}
+
+  redis:
+    image: redis:6-alpine
+    volumes:
+      - ./data/redis:/data
+    entrypoint: redis-server --appendonly yes
+    restart: always
+    ports:
+      - "6400:6379"
+
+  # api:
+  #   container_name: api
+  #   restart: always
+  #   build:
+  #     context: ./api
+  #     dockerfile: Dockerfile
+  #   working_dir: /usr/src/app
+  #   volumes:
+  #     - ./api:/usr/src/app 
+  #   ports:
+  #     - 5000:5000
+  #   depends_on:
+  #     - mongodb
+  #     - redis

@@ -1,0 +1,21 @@
+{
+  "name": "mongo-watcher",
+  "version": "1.0.0",
+  "description": "sample mongo change-stream watcher app",
+  "main": "./dist/index.js",
+  "scripts": {
+    "postinstall": "tsc -p ./",
+    "start": "ts-node-dev --inspect=0.0.0.0:4323 --respawn --transpile-only index.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/mongodb": "^3.5.27",
+    "@types/node": "^14.11.2",
+    "ts-node-dev": "^1.0.0-pre.63",
+    "typescript": "^4.0.3"
+  },
+  "dependencies": {
+    "mongodb": "^3.6.2"
+  }
+}
