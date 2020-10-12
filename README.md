@@ -1,5 +1,9 @@
 # Dockerized playground for Mongo Change Streams test
 
+## Written for an article on Medium
+
+[Article](https://medium.com/@oleksandr.k/how-to-play-with-docker-node-mongodb-change-stream-c42e45cc84a4) 
+
 ## Prerequisites
 
 App tested with
